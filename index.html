@@ -115,9 +115,12 @@
       .append("g")
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+
+    // initialize year and month values
     year = "1961";
     month = "march";
 
+    // get month buttons
     const jan = document.getElementById("jan");
     const feb = document.getElementById("feb");
     const mar = document.getElementById("mar");
@@ -161,10 +164,10 @@
     const poly = svg.append("g");
     const line = svg.append("g");
 
-    //define color scale range: -2 to 3 continuous
+    //define color scale range: -2 to 3 
     const colorScale = d3
       .scaleThreshold()
-      .domain([-2, -1, 0, 1, 2, 3])
+      .domain([-2, -1, 0, 1, 2, 3, 4])
       .range(["#2166ac", "#4393c3", "#92c5de", "#d1e5f0", "#fddbc7", "#f4a582", "#d6604d", "#b2182b"])
       .unknown("#E6E6E6");
 
@@ -187,8 +190,8 @@
 
     Promise.all(promises).then(ready);
     function ready([topology, temperatureData, worldData]) {
+        
       // prepare temperature data
-
       tempData = {};
       Object.keys(temperatureData).forEach(function (d) {
         //console.log(temperatureData[d].features[year][monthCode[month]]);
