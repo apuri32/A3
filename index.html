@@ -60,6 +60,11 @@
       <a href="#" id="oct">October</a>
       <a href="#" id="nov">November</a>
       <a href="#" id="dec">December</a>
+      <a href="#" id="spring">Spring: March-May</a>
+      <a href="#" id="summer">Summer: June-August</a>
+      <a href="#" id="fall">Fall: September-November</a>
+      <a href="#" id="winter">Winter: December-February</a>
+      <a href="#" id="annual">Year Average</a>
     </div>
   </div>
   <div style="width: 550px; height: 600px; float: left">
@@ -133,6 +138,11 @@
     const oct = document.getElementById("oct");
     const nov = document.getElementById("nov");
     const dec = document.getElementById("dec");
+    const spring = document.getElementById("spring");
+    const summer = document.getElementById("summer");
+    const fall = document.getElementById("fall");
+    const winter = document.getElementById("winter");
+    const annual = document.getElementById("annual");
     const monthVal = document.getElementById("monthVal");
 
     const monthCode = {
@@ -148,6 +158,11 @@
       october: 9,
       november: 10,
       december: 11,
+      "dec?jan?feb": 12,
+      "mar?apr?may": 13,
+      "jun?jul?aug": 14,
+      "sep?oct?nov": 15,
+      "meteorological year": 16,
     };
 
     // set map scale, location on screen and its projection
@@ -168,7 +183,7 @@
     const colorScale = d3
       .scaleThreshold()
       .domain([-2, -1, 0, 1, 2, 3, 4])
-      .range(["#2166ac", "#4393c3", "#92c5de", "#d1e5f0", "#fddbc7", "#f4a582", "#d6604d", "#b2182b"])
+      .range(["#2166ac", "#4393c3", "#92c5de", "#fff0e8", "#fddbc7", "#f4a582", "#d6604d", "#b2182b"])
       .unknown("#E6E6E6");
 
     console.log(d3.schemeRdBu[7]);
@@ -190,7 +205,7 @@
 
     Promise.all(promises).then(ready);
     function ready([topology, temperatureData, worldData]) {
-        
+
       // prepare temperature data
       tempData = {};
       Object.keys(temperatureData).forEach(function (d) {
@@ -426,6 +441,32 @@
         updateGraph(updateTempValues(year, month));
         monthVal.innerHTML = "December";
       });
+      spring.addEventListener("click", function () {
+      month = "mar?apr?may";
+      updateGraph(updateTempValues(year, month));
+      monthVal.innerHTML = "Spring: March-May";
+    });
+    summer.addEventListener("click", function () { 
+        month = "jun?jul?aug";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "Summer: June-August";
+        });
+    fall.addEventListener("click", function () {
+        month = "sep?oct?nov";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "Fall: September-November";
+        });
+    winter.addEventListener("click", function () {
+        month = "dec?jan?feb";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "Winter: December-February";
+        });
+    annual.addEventListener("click", function () {
+        month = "meteorological year";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "Year";
+        });
+
 
       // Attach the update function to the input event of the slider
       slider.on("input", updateSliderValue);
