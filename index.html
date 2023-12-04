@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Average Temperature Change Over the Years</title>
+<head>
+  <style>
+    .slider {
+      width: 80%;
+      margin: 0 auto;
+    }
+
+    .slider input {
+      width: 100%;
+    }
+
+    .dropdown {
+      position: right;
+      display: inline-block;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #f9f9f9;
+      min-width: 160px;
+      box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+      z-index: 1;
+    }
+
+    .dropdown-content a {
+      color: black;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+    }
+
+    .dropdown-content a:hover {
+      background-color: #f1f1f1;
+    }
+
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Average Temperature Change Over the Years</h1>
+  <div class="dropdown">
+    <button><span id="monthVal">Month</span></button>
+    <div class="dropdown-content">
+      <a href="#" id="jan">January</a>
+      <a href="#" id="feb">Febuary</a>
+      <a href="#" id="mar">March</a>
+      <a href="#" id="apr">April</a>
+      <a href="#" id="may">May</a>
+      <a href="#" id="jun">June</a>
+      <a href="#" id="jul">July</a>
+      <a href="#" id="aug">August</a>
+      <a href="#" id="sep">September</a>
+      <a href="#" id="oct">October</a>
+      <a href="#" id="nov">November</a>
+      <a href="#" id="dec">December</a>
+    </div>
+  </div>
+  <div style="width: 550px; height: 600px; float: left">
+    <div class="slider">
+      <label for="slider">Year:</label>
+      <input type="range" id="slider" min="1961" max="2020" value="1961" />
+      <p>Value: <span id="sliderValue">1961</span></p>
+    </div>
+    <div id="viz_container"></div>
+  </div>
+  <div
+    id="bar_graph"
+    style="
+      float: right;
+      height: 550px;
+      width: 600px;
+    "
+  ></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!--<script src="https://cdn.jsdelivr.net/npm/d3-geo@"></script>-->
+  <script src="https://cdn.jsdelivr.net/npm/d3-geo-projection@4"></script>
+  <script src="https://unpkg.com/topojson@3"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.6/d3-legend.min.js"></script>
+
+  <script>
+    // Get the slider input element
+    const slider = d3.select("#slider");
+
+    // Initial value
+    const initialValue = slider.property("value");
+    d3.select("#sliderValue").text(initialValue);
+
+    //set svg parameters
+    const width = 450,
+      height = 400;
+    const svg = d3
+      .select("#viz_container")
+      .append("svg")
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .attr("viewBox", "0 0  450 400")
+      .attr("preserveAspectRatio", "xMinYMin");
+
+    margin = { top: 20, right: 20, bottom: 30, left: 50 };
+    const width2 = 600 - margin.left - margin.right;
+    const height2 = 400 - margin.top - margin.bottom;
+    const svg2 = d3
+      .select("#bar_graph")
+      .append("svg")
+      .attr("width", width2 + margin.left + margin.right)
+      .attr("height", height2 + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    year = "1961";
+    month = "march";
+
+    const jan = document.getElementById("jan");
+    const feb = document.getElementById("feb");
+    const mar = document.getElementById("mar");
+    const apr = document.getElementById("apr");
+    const may = document.getElementById("may");
+    const jun = document.getElementById("jun");
+    const jul = document.getElementById("jul");
+    const aug = document.getElementById("aug");
+    const sep = document.getElementById("sep");
+    const oct = document.getElementById("oct");
+    const nov = document.getElementById("nov");
+    const dec = document.getElementById("dec");
+    const monthVal = document.getElementById("monthVal");
+
+    const monthCode = {
+      january: 0,
+      february: 1,
+      march: 2,
+      april: 3,
+      may: 4,
+      june: 5,
+      july: 6,
+      august: 7,
+      september: 8,
+      october: 9,
+      november: 10,
+      december: 11,
+    };
+
+    // set map scale, location on screen and its projection
+    const projection = d3
+      .geoRobinson()
+      .scale(85)
+      .center([0, 0])
+      .translate([width / 2.0, height / 2.2]);
+
+    // path generator
+    const path = d3.geoPath().projection(projection);
+
+    //declare polygon and polyline
+    const poly = svg.append("g");
+    const line = svg.append("g");
+
+    //define color scale range: -2 to 3 continuous
+    const colorScale = d3
+      .scaleThreshold()
+      .domain([-2, -1, 0, 1, 2, 3])
+      .range(["#2166ac", "#4393c3", "#92c5de", "#d1e5f0", "#fddbc7", "#f4a582", "#d6604d", "#b2182b"])
+      .unknown("#E6E6E6");
+
+    console.log(d3.schemeRdBu[7]);
+
+    // declare URL
+    const dataURL = "output.json";
+    const worldDataURL = "Global_annual_mean_temp.csv";
+    const polygonsURL =
+      "https://raw.githubusercontent.com/GDS-ODSSS/unhcr-dataviz-platform/master/data/geospatial/world_polygons_simplified.json";
+    const polylinesURL =
+      "https://raw.githubusercontent.com/GDS-ODSSS/unhcr-dataviz-platform/master/data/geospatial/world_lines_simplified.json";
+
+    // load data
+    const promises = [
+      d3.json(polygonsURL),
+      d3.json(dataURL),
+      d3.csv(worldDataURL),
+    ];
+
+    Promise.all(promises).then(ready);
+    function ready([topology, temperatureData, worldData]) {
+      // prepare temperature data
+
+      tempData = {};
+      Object.keys(temperatureData).forEach(function (d) {
+        //console.log(temperatureData[d].features[year][monthCode[month]]);
+        //console.log(monthCode[month]);
+        if (temperatureData[d].features[year] == null) {
+          tempData[d] = NaN;
+        } else {
+          tempData[d] =
+            temperatureData[d].features[year][monthCode[month]][month];
+        }
+      });
+
+      worldDa = {};
+      // map years to temperature
+      Object.keys(worldData).forEach(function (d) {
+        worldDa[worldData[d].Year] = parseFloat(worldData[d].No_Smoothing);
+      });
+      delete worldDa["undefined"];
+      //console.log(worldDa);
+
+      // set mouse events
+      const mouseover = function (d) {
+        d3.selectAll(".countries")
+          .transition()
+          .duration(100)
+          .style("opacity", 0.3);
+        d3.select(this).transition().duration(100).style("opacity", 1);
+      };
+      const mouseleave = function (d) {
+        d3.selectAll(".countries")
+          .transition()
+          .duration(100)
+          .style("opacity", 1);
+        d3.select(this).transition().duration(100).style("opacity", 1);
+      };
+
+      const updateTempValues = (year) => {
+        tempData = {};
+        Object.keys(temperatureData).forEach(function (d) {
+          //console.log(temperatureData[d].features[year][0][month])
+          if (temperatureData[d].features[year] == null) {
+            tempData[d] = NaN;
+          } else {
+            tempData[d] =
+              temperatureData[d].features[year][monthCode[month]][month];
+          }
+        });
+        return tempData;
+      };
+
+      // load and draw polygons
+
+      const updateGraph = (tempDa) => {
+        //clear previous graph
+        poly.selectAll("path").remove();
+        poly
+          .selectAll("path")
+          .data(
+            topojson.feature(
+              topology,
+              topology.objects.world_polygons_simplified
+            ).features
+          )
+          .join("path")
+          .attr("fill", function (d) {
+            return colorScale(tempDa[d.properties.gis_name]);
+          })
+          .attr("d", path)
+          .attr("class", function (d) {
+            return "countries";
+          })
+          .on("mouseover", mouseover)
+          .on("mouseleave", mouseleave)
+          .append("title")
+          .text(function (d) {
+            return `${
+              d.properties.gis_name
+            } \nTemperature Change: ${d3.format(",")(tempDa[d.properties.gis_name])}°C`;
+          });
+      };
+      updateGraph(tempData);
+      //load and draw lines
+      d3.json(polylinesURL).then(function (topology) {
+        line
+          .selectAll("path")
+          .data(
+            topojson.feature(topology, topology.objects.world_lines_simplified)
+              .features
+          )
+          .enter()
+          .append("path")
+          .attr("d", path)
+          .style("fill", "none")
+          .attr("class", function (d) {
+            return d.properties.type;
+          });
+      });
+
+      // bar graph
+      const dataArray = Object.entries(worldDa).map(([year, temperature]) => ({
+        year: parseInt(year),
+        temperature,
+      }));
+
+      const x = d3
+        .scaleBand()
+        .range([0, width])
+        .padding(0.1)
+        .domain(dataArray.map((d) => d.year));
+
+      //ymin = Object.values(worldDa).reduce((a, b) => Math.min(a, b), Infinity);
+      //ymax = Object.values(worldDa).reduce((a, b) => Math.max(a, b), -Infinity);
+
+      const y = d3
+        .scaleLinear()
+        .range([height, 0])
+        .domain([d3.min(dataArray, d => Math.min(0, d.temperature)), d3.max(dataArray, d => Math.max(0, d.temperature))]);
+
+      //console.log([ymin, ymax]);
+      //console.log(Object.keys(worldDa));
+      // Add bars to the graph
+      svg2
+        .selectAll("rect")
+        .data(dataArray)
+        .enter()
+        .append("rect")
+        .attr("x", (d) => x(d.year))
+        .attr("width", x.bandwidth())
+        .attr("y", d => y(Math.max(0, d.temperature))) 
+        .attr("height", d => Math.abs(y(0) - y(d.temperature))) 
+        .attr("fill", d => (d.temperature < 0 ? "steelblue" : "orange")); 
+      // Add x-axis
+      svg2
+        .append("g")
+        .attr("transform", "translate(0," + y(0) + ")") // Move the x-axis to y = 0
+        .call(d3.axisBottom(x)
+            .tickValues(x.domain().filter((d, i) => i % 5 === 0)) // Display labels for every 5 ticks
+            .tickSizeOuter(0)
+        );
+
+      // Add y-axis
+      svg2.append("g").call(d3.axisLeft(y));
+
+      // Add labels
+      svg2
+        .append("text")
+        .attr(
+          "transform",
+          "translate(" + width / 2 + " ," + (height + margin.top + 10) + ")"
+        )
+        .style("text-anchor", "middle")
+        .text("Year");
+
+      svg2
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0 - margin.left)
+        .attr("x", 0 - height / 2)
+        .attr("dy", "1em")
+        .style("text-anchor", "middle")
+        .text("Temperature Change (°C)");
+
+      // Define the update function for the slider value
+      const updateSliderValue = () => {
+        const sliderValue = slider.property("value");
+        d3.select("#sliderValue").text(sliderValue);
+        tempData = updateTempValues(sliderValue);
+        updateGraph(tempData);
+        svg2.selectAll("rect")
+            .attr("fill", d => (d.year == sliderValue ? "red" : (d.temperature < 0 ? "steelblue" : "orange")));
+    
+      };
+
+      // Attach event listeners to the dropdown items
+      jan.addEventListener("click", function () {
+        month = "january";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "January";
+      });
+      feb.addEventListener("click", function () {
+        month = "february";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "Febuary";
+      });
+      mar.addEventListener("click", function () {
+        month = "march";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "March";
+      });
+      apr.addEventListener("click", function () {
+        month = "april";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "April";
+      });
+      may.addEventListener("click", function () {
+        month = "may";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "May";
+      });
+      jun.addEventListener("click", function () {
+        month = "june";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "June";
+      });
+      jul.addEventListener("click", function () {
+        month = "july";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "July";
+      });
+      aug.addEventListener("click", function () {
+        month = "august";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "August";
+      });
+      sep.addEventListener("click", function () {
+        month = "september";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "September";
+      });
+      oct.addEventListener("click", function () {
+        month = "october";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "October";
+      });
+      nov.addEventListener("click", function () {
+        month = "november";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "November";
+      });
+      dec.addEventListener("click", function () {
+        month = "december";
+        updateGraph(updateTempValues(year, month));
+        monthVal.innerHTML = "December";
+      });
+
+      // Attach the update function to the input event of the slider
+      slider.on("input", updateSliderValue);
+    }
+
+    //zoom function
+    const zoom = true;
+    if (zoom) {
+      var zoomFunction = d3
+        .zoom()
+        .scaleExtent([1, 8])
+        .on("zoom", function (event) {
+          poly.selectAll("path").attr("transform", event.transform);
+          line.selectAll("path").attr("transform", event.transform);
+        });
+      svg.call(zoomFunction);
+    }
+
+    // set legend
+    svg
+      .append("g")
+      .attr("class", "legendThreshold")
+      .attr("transform", "translate(5,225)");
+
+    const legend = d3
+      .legendColor()
+      .labelFormat(d3.format(",.0f"))
+      .labels(d3.legendHelpers.thresholdLabels)
+      .labelOffset(3)
+      .shapePadding(0)
+      .scale(colorScale);
+
+    svg.select(".legendThreshold").call(legend);
+
+    // set note
+    svg
+      .append("text")
+      .attr("class", "note")
+      .attr("x", width * 0.01)
+      .attr("y", height * 0.99)
+      .attr("text-anchor", "start")
+      .style("font-size", 9)
+      .text(
+        "White indicates no data found for the corisponding month and year"
+      );
+  </script>
+</body>
